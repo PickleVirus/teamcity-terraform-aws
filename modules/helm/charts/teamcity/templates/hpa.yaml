@@ -1,0 +1,28 @@
+{{- if .Values.secondary.autoscaling.enabled }}
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "teamcity.fullname" . }}
+  labels:
+    {{- include "teamcity.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "teamcity.fullname" . }}-secondary
+  minReplicas: {{ .Values.secondary.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.secondary.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.secondary.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        targetAverageUtilization: {{ .Values.secondary.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.secondary.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        targetAverageUtilization: {{ .Values.secondary.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}

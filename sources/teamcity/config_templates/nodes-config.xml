@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes-config>
+  <nodes>
+    <node id="main" url="http://pod_ip:8111" enabled-responsibilities="MAIN_NODE" />
+  </nodes>
+</nodes-config>

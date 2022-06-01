@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="a6ea0447-e494-487a-aa1a-d6f37797112c" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+  <name>Sample</name>
+  <parameters />
+  <project-extensions>
+    <extension id="PROJECT_EXT_2" type="storage_settings">
+      <parameters>
+        <param name="aws.access.key.id" value="${s3_access_key_id}" />
+        <param name="aws.credentials.type" value="aws.access.keys" />
+        <param name="aws.environment" value="" />
+        <param name="aws.external.id" value="TeamCity-server-febc476d-8749-4f6d-9a7b-db5c3f05cd5b" />
+        <param name="aws.region.name" value="eu-north-1" />
+        <param name="aws.service.endpoint" value="" />
+        <param name="secure:aws.secret.access.key" value="${s3_access_key_secret}" />
+        <param name="storage.s3.bucket.name" value="${s3_bucket_name}" />
+        <param name="storage.s3.upload.presignedUrl.enabled" value="true" />
+        <param name="storage.type" value="S3_storage" />
+      </parameters>
+    </extension>
+    <extension id="PROJECT_EXT_3" type="active_storage">
+      <parameters>
+        <param name="active.storage.feature.id" value="PROJECT_EXT_2" />
+      </parameters>
+    </extension>
+  </project-extensions>
+  <cleanup />
+</project>
+

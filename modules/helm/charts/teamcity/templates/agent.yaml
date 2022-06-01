@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "teamcity.fullname" . }}-agent
+  labels:
+    instance: agent
+    {{- include "teamcity.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.agent.autoscaling.enabled }}
+  replicas: {{ .Values.agent.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      instance: agent
+      {{- include "teamcity.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        instance: agent
+        {{- include "teamcity.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "teamcity.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8111
+              protocol: TCP
+            - name: ssh
+              containerPort: 22
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: AGENT_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .Values.agent.auth.token }}
+            - name: AGENT_TOKEN
+              value: {{ .Values.agent.auth.token }}
+            {{- end }}
+            - name: SERVER_URL
+              value: "{{ include "teamcity.fullname" . }}.{{ .Release.Namespace}}.svc.cluster.local:{{ .Values.service.port }}"
+      {{- with .Values.agent.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: all-egress-8111-to-tc-server
+  namespace: {{ .Release.Namespace }}
+spec:
+  policyTypes:
+  - Egress
+  podSelector:
+    matchLabels:
+      instance: agent
+  egress:
+  - ports:
+    - port: 8111
+      protocol: TCP
+    to:
+    - podSelector:
+        matchLabels:
+          instance: main
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: all-egress-to-53
+  namespace: {{ .Release.Namespace }}
+spec:
+  policyTypes:
+  - Egress
+  podSelector:
+    matchLabels:
+      instance: agent
+  egress:
+  - ports:
+    - port: 53
+      protocol: TCP
+    - port: 53
+      protocol: UDP

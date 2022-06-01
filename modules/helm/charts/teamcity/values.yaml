@@ -1,0 +1,96 @@
+# Default values for teamcity.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: jetbrains/teamcity-server
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+storage:
+  type: azure
+  fsid: #add if using aws efs
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: ingress.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+artifacts:
+  enabled: true
+  arn: "" # add arn for artifacts storage S3 access
+  bucket: "" # add bucket if needed
+
+main:
+  replicaCount: 1
+  serverConfig: "" # add base64 file
+  startupScript: "" # add base64 file
+
+secondary:
+  replicaCount: 2
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 80
+
+agent:
+  auth:
+    token: "" ### add 
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: jetbrains/teamcity-agent
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 80
+  nodeSelector:
+    assignment: "secondary"
+  tolerations:
+    - key: "assignment"
+      operator: "Equal"
+      value: "agent"
+      effect: "NoSchedule"
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

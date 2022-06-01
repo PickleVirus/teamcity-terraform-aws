@@ -1,0 +1,10 @@
+{{- if .Values.main.serverConfig -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  creationTimestamp: 2016-02-18T18:52:05Z
+  name: {{ include "teamcity.fullname" . }}
+binaryData:
+  "tc-config.zip": {{ .Values.main.serverConfig }}
+  "tcinit.sh": {{.Values.main.startupScript}}
+{{- end }}

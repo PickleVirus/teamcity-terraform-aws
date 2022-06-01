@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "teamcity.fullname" . }}-secondary
+  labels:
+    instance: secondary
+    {{- include "teamcity.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.secondary.autoscaling.enabled }}
+  replicas: {{ .Values.secondary.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      instance: secondary
+      {{- include "teamcity.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        instance: secondary
+        {{- include "teamcity.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "teamcity.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-webserver
+          image: curlimages/curl:latest
+          command: ["/bin/sh","-c"]
+          {{- with (index .Values.ingress.hosts 0) }}
+          args: ["while [ $(curl -sw '%{http_code}' http://{{ .host }} -o /dev/null) -ne 401 ]; do sleep 5; echo 'Waiting for the webserver...'; done"]
+          {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8111
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: TEAMCITY_SERVER_OPTS
+              value: -Dteamcity.server.nodeId=$(POD_NAME) -Dteamcity.server.rootURL=http://$(POD_IP):8111 -Dteamcity.data.path=/data/teamcity_server/datadir -Dteamcity.node.data.path=/data/teamcity_server/datadir/nodes/$(POD_NAME)
+            - name: TEAMCITY_DATA_PATH
+              value: /data/teamcity_server/datadir
+          volumeMounts:
+            - mountPath: "/data/teamcity_server/datadir"
+              name: shareddata
+      volumes:
+        - name: shareddata
+          persistentVolumeClaim:
+            claimName: {{ include "teamcity.fullname" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "teamcity.fullname" . }}-main
+  labels:
+    instance: main
+    {{- include "teamcity.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.main.replicaCount }}
+  selector:
+    matchLabels:
+      instance: main
+      {{- include "teamcity.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        instance: main
+        {{- include "teamcity.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "teamcity.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - image: curlimages/curl:latest
+          name: tc-server-init
+          command: ['sh', '-c', '/var/data/distr/tcinit.sh']
+          env:
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          volumeMounts:
+            - mountPath: "/var/data/distr"
+              name: configdistr
+            - mountPath: "/data/teamcity_server/datadir"
+              name: shareddata  
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8111
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: TEAMCITY_SERVER_OPTS
+              value: -Dteamcity.server.nodeId=main -Dteamcity.server.rootURL=http://$(POD_IP):8111 -Dteamcity.data.path=/data/teamcity_server/datadir -Dteamcity.node.data.path=/data/teamcity_server/datadir/nodes/main
+            - name: TEAMCITY_DATA_PATH
+              value: /data/teamcity_server/datadir
+          volumeMounts:
+            - mountPath: "/data/teamcity_server/datadir"
+              name: shareddata
+            - mountPath: "/var/data/distr"
+              name: configdistr       
+      volumes:
+        - name: shareddata
+          persistentVolumeClaim:
+            claimName: {{ include "teamcity.fullname" . }}
+        - name: configdistr
+          configMap:
+            name: {{ include "teamcity.fullname" . }}
+            defaultMode: 0777
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
